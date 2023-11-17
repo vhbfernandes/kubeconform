@@ -3,29 +3,29 @@ package registry
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
 )
 
-type mockHTTPGetter struct {
-	httpGet func(string) (*http.Response, error)
+type mockHTTPDoer struct {
+	httpDo func(*http.Request) (*http.Response, error)
 }
 
-func newMockHTTPGetter(f func(string) (*http.Response, error)) *mockHTTPGetter {
-	return &mockHTTPGetter{
-		httpGet: f,
+func newMockHTTPDoer(f func(*http.Request) (*http.Response, error)) *mockHTTPDoer {
+	return &mockHTTPDoer{
+		httpDo: f,
 	}
 }
-func (m mockHTTPGetter) Get(url string) (resp *http.Response, err error) {
-	return m.httpGet(url)
+func (m mockHTTPDoer) Do(req *http.Request) (resp *http.Response, err error) {
+	return m.httpDo(req)
 }
 
 func TestDownloadSchema(t *testing.T) {
 	for _, testCase := range []struct {
 		name                                         string
-		c                                            httpGetter
+		c                                            httpDoer
 		schemaPathTemplate                           string
 		strict                                       bool
 		resourceKind, resourceAPIVersion, k8sversion string
@@ -34,7 +34,7 @@ func TestDownloadSchema(t *testing.T) {
 	}{
 		{
 			"error when downloading",
-			newMockHTTPGetter(func(url string) (resp *http.Response, err error) {
+			newMockHTTPDoer(func(req *http.Request) (resp *http.Response, err error) {
 				return nil, fmt.Errorf("failed downloading from registry")
 			}),
 			"http://kubernetesjson.dev",
@@ -47,10 +47,10 @@ func TestDownloadSchema(t *testing.T) {
 		},
 		{
 			"getting 404",
-			newMockHTTPGetter(func(url string) (resp *http.Response, err error) {
+			newMockHTTPDoer(func(req *http.Request) (resp *http.Response, err error) {
 				return &http.Response{
 					StatusCode: http.StatusNotFound,
-					Body:       ioutil.NopCloser(strings.NewReader("http response mock body")),
+					Body:       io.NopCloser(strings.NewReader("http response mock body")),
 				}, nil
 			}),
 			"http://kubernetesjson.dev",
@@ -63,10 +63,10 @@ func TestDownloadSchema(t *testing.T) {
 		},
 		{
 			"getting 503",
-			newMockHTTPGetter(func(url string) (resp *http.Response, err error) {
+			newMockHTTPDoer(func(req *http.Request) (resp *http.Response, err error) {
 				return &http.Response{
 					StatusCode: http.StatusServiceUnavailable,
-					Body:       ioutil.NopCloser(strings.NewReader("http response mock body")),
+					Body:       io.NopCloser(strings.NewReader("http response mock body")),
 				}, nil
 			}),
 			"http://kubernetesjson.dev",
@@ -79,10 +79,10 @@ func TestDownloadSchema(t *testing.T) {
 		},
 		{
 			"200",
-			newMockHTTPGetter(func(url string) (resp *http.Response, err error) {
+			newMockHTTPDoer(func(req *http.Request) (resp *http.Response, err error) {
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(strings.NewReader("http response mock body")),
+					Body:       io.NopCloser(strings.NewReader("http response mock body")),
 				}, nil
 			}),
 			"http://kubernetesjson.dev",
